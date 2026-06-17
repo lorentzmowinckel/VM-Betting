@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VM Betting 2026</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --green: #1a472a;
+  --green-light: #2d6a3f;
+  --gold: #f0b429;
+  --bg: #f5f5f0;
+  --card: #ffffff;
+  --border: #e0e0d8;
+  --text: #1a1a1a;
+  --muted: #666;
+  --red: #c0392b;
+  --blue: #2563eb;
+  --success: #16a34a;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* AUTH */
+#authScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--green); }
+.auth-box { background: white; border-radius: 16px; padding: 2rem; width: 90%; max-width: 400px; }
+.auth-logo { text-align: center; margin-bottom: 1.5rem; }
+.auth-logo h1 { font-size: 24px; color: var(--green); font-weight: 700; }
+.auth-logo p { color: var(--muted); font-size: 14px; margin-top: 4px; }
+.auth-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
+.auth-tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; font-size: 14px; color: var(--muted); border-bottom: 2px solid transparent; }
+.auth-tab.active { color: var(--green); border-bottom-color: var(--green); font-weight: 500; }
+.form-group { margin-bottom: 1rem; }
+.form-group label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+.form-group input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; outline: none; }
+.form-group input:focus { border-color: var(--green); }
+.btn-primary { width: 100%; padding: 12px; background: var(--green); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; }
+.btn-primary:hover { background: var(--green-light); }
+.auth-error { color: var(--red); font-size: 13px; margin-top: 8px; text-align: center; }
+
+/* APP */
+#appScreen { display: none; }
+.header { background: var(--green); color: white; padding: 0.75rem 1rem; display: flex; align-items: center; justify-content: space-between; }
+.header-left { display: flex; align-items: center; gap: 10px; }
+.header h1 { font-size: 18px; font-weight: 600; }
+.header-user { font-size: 13px; opacity: 0.8; }
+.balance-chip { background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 99px; font-size: 14px; font-weight: 500; }
+.logout-btn { background: none; border: 1px solid rgba(255,255,255,0.4); color: white; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+
+.tabs { display: flex; background: white; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.tab { padding: 12px 16px; font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+.tab.active { border-bottom-color: var(--green); color: var(--green); font-weight: 500; }
+
+.page { display: none; padding: 1rem; max-width: 700px; margin: 0 auto; }
+.page.active { display: block; }
+
+/* CARDS */
+.card { background: var(--card); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 12px; overflow: hidden; }
+.card-header { padding: 10px 14px; background: #f9f9f6; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); }
+.card-body { padding: 14px; }
+
+/* MATCH */
+.match-teams { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.team { text-align: center; flex: 1; }
+.team-flag { font-size: 30px; display: block; margin-bottom: 4px; }
+.team-name { font-size: 13px; font-weight: 500; }
+.match-score-box { text-align: center; min-width: 80px; }
+.match-score { font-size: 26px; font-weight: 700; }
+.match-vs { font-size: 13px; color: var(--muted); }
+.odds-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.odd-btn { padding: 10px 6px; border: 1px solid var(--border); border-radius: 8px; text-align: center; cursor: pointer; background: #f9f9f6; transition: all 0.15s; }
+.odd-btn:hover { background: #e8f4ed; border-color: var(--green); }
+.odd-btn.selected { background: var(--green); border-color: var(--green); color: white; }
+.odd-btn.selected .odd-label { color: rgba(255,255,255,0.8); }
+.odd-label { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.odd-value { font-size: 17px; font-weight: 600; }
+.status-badge { font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 500; }
+.status-upcoming { background: #dbeafe; color: #1e40af; }
+.status-live { background: #fee2e2; color: #991b1b; animation: pulse 2s infinite; }
+.status-done { background: #dcfce7; color: #166534; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+/* BET SLIP */
+.slip-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.slip-item:last-of-type { border-bottom: none; }
+.slip-match { font-size: 12px; color: var(--muted); }
+.slip-pick { font-size: 14px; font-weight: 500; margin-top: 2px; }
+.slip-odd { font-size: 14px; color: var(--blue); font-weight: 500; }
+.remove-btn { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; padding: 0 4px; line-height: 1; }
+.remove-btn:hover { color: var(--red); }
+.stake-row { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
+.stake-row label { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.stake-row input { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; }
+.payout-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.payout-label { font-size: 13px; color: var(--muted); }
+.payout-value { font-size: 18px; font-weight: 700; color: var(--success); }
+.total-odds { font-size: 13px; color: var(--muted); text-align: right; margin-bottom: 10px; }
+
+/* MY BETS */
+.bet-row { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.bet-row:last-child { border-bottom: none; }
+.bet-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.bet-picks { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.bet-amounts { display: flex; justify-content: space-between; font-size: 13px; }
+.result-badge { font-size: 11px; padding: 3px 10px; border-radius: 99px; font-weight: 500; }
+.result-venter { background: #dbeafe; color: #1e40af; }
+.result-vunnet { background: #dcfce7; color: #166534; }
+.result-tapt { background: #fee2e2; color: #991b1b; }
+
+/* LEADERBOARD */
+.lb-row { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.lb-row:last-child { border-bottom: none; }
+.lb-rank { font-size: 20px; width: 32px; text-align: center; }
+.lb-avatar { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; flex-shrink: 0; }
+.lb-name { flex: 1; font-weight: 500; }
+.lb-balance { font-weight: 600; font-size: 16px; }
+.lb-diff { font-size: 12px; margin-left: 6px; }
+.positive { color: var(--success); }
+.negative { color: var(--red); }
+
+/* ADMIN */
+.admin-section { background: var(--card); border-radius: 12px; border: 1px solid var(--border); padding: 16px; margin-bottom: 14px; }
+.admin-title { font-size: 15px; font-weight: 600; margin-bottom: 14px; color: var(--green); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.form-col { display: flex; flex-direction: column; gap: 4px; }
+.form-col label { font-size: 12px; color: var(--muted); }
+.form-col input, .form-col select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; }
+.btn-green { padding: 10px 18px; background: var(--green); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
+.btn-green:hover { background: var(--green-light); }
+
+.slip-badge { display: inline-block; background: var(--red); color: white; font-size: 11px; padding: 1px 6px; border-radius: 99px; margin-left: 4px; }
+.empty-state { text-align: center; padding: 2rem; color: var(--muted); font-size: 14px; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--green); color: white; padding: 10px 20px; border-radius: 8px; font-size: 14px; z-index: 9999; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
+.toast.show { opacity: 1; }
+.admin-only { display: none; }
+.live-dot { display: inline-block; width: 6px; height: 6px; background: var(--red); border-radius: 50%; margin-right: 4px; animation: pulse 1.5s infinite; }
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="authScreen">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <h1>🏆 VM Betting 2026</h1>
+      <p>Fiktive penger — ekte rivalitet</p>
+    </div>
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="switchAuthTab('login')">Logg inn</div>
+      <div class="auth-tab" onclick="switchAuthTab('register')">Registrer</div>
+    </div>
+    <div id="loginForm">
+      <div class="form-group"><label>E-post</label><input type="email" id="loginEmail" placeholder="deg@eksempel.no"></div>
+      <div class="form-group"><label>Passord</label><input type="password" id="loginPassword" placeholder="••••••••"></div>
+      <button class="btn-primary" onclick="login()">Logg inn</button>
+      <div class="auth-error" id="loginError"></div>
+    </div>
+    <div id="registerForm" style="display:none;">
+      <div class="form-group"><label>Navn (vises på leaderboard)</label><input type="text" id="regName" placeholder="Ole Gunnar"></div>
+      <div class="form-group"><label>E-post</label><input type="email" id="regEmail" placeholder="deg@eksempel.no"></div>
+      <div class="form-group"><label>Passord</label><input type="password" id="regPassword" placeholder="Minst 6 tegn"></div>
+      <button class="btn-primary" onclick="register()">Opprett konto</button>
+      <div class="auth-error" id="registerError"></div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appScreen">
+  <div class="header">
+    <div class="header-left">
+      <div>
+        <h1>🏆 VM Betting</h1>
+        <div class="header-user" id="headerUser"></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="balance-chip" id="headerBalance">— fpm</div>
+      <button class="logout-btn" onclick="logout()">Logg ut</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('kamper')">⚽ Kamper</div>
+    <div class="tab" onclick="switchTab('kupong')">🎫 Kupong <span class="slip-badge" id="slipBadge" style="display:none;">0</span></div>
+    <div class="tab" onclick="switchTab('mine')">📋 Mine bets</div>
+    <div class="tab" onclick="switchTab('tabell')">🏅 Tabell</div>
+    <div class="tab admin-only" id="adminTab" onclick="switchTab('admin')">⚙️ Admin</div>
+  </div>
+
+  <!-- KAMPER -->
+  <div class="page active" id="page-kamper">
+    <div id="matchList"><div class="empty-state">Laster kamper...</div></div>
+  </div>
+
+  <!-- KUPONG -->
+  <div class="page" id="page-kupong">
+    <div class="card">
+      <div class="card-header">
+        <span>Din kupong</span>
+        <span id="totalOddsDisplay">Total odds: —</span>
+      </div>
+      <div class="card-body">
+        <div id="slipItems"><div class="empty-state" style="padding:1rem 0;">Ingen valg ennå — gå til kamper og velg utfall</div></div>
+        <div class="stake-row">
+          <label>Innsats (fpm):</label>
+          <input type="number" id="stakeInput" value="100" min="10" oninput="updatePayout()">
+        </div>
+        <div class="payout-box">
+          <span class="payout-label">Mulig gevinst</span>
+          <span class="payout-value" id="payoutVal">— fpm</span>
+        </div>
+        <button class="btn-primary" id="placeBetBtn" onclick="placeBet()" disabled>Legg inn bet</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MINE BETS -->
+  <div class="page" id="page-mine">
+    <div class="card"><div class="card-body" id="myBetsList"><div class="empty-state">Ingen bets ennå</div></div></div>
+  </div>
+
+  <!-- TABELL -->
+  <div class="page" id="page-tabell">
+    <div class="card" id="leaderboard"><div class="empty-state">Laster tabell...</div></div>
+  </div>
+
+  <!-- ADMIN -->
+  <div class="page" id="page-admin">
+    <div class="admin-section">
+      <div class="admin-title">⚙️ Sett kampresultat</div>
+      <div class="form-row">
+        <div class="form-col"><label>Velg kamp</label><select id="resultMatchSelect"></select></div>
+        <div class="form-col"><label>Resultat</label>
+          <select id="resultSelect">
+            <option value="1">1 — Hjemmeseier</option>
+            <option value="X">X — Uavgjort</option>
+            <option value="2">2 — Borteseier</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn-green" onclick="setResult()">Bekreft resultat & utbetal gevinster</button>
+    </div>
+
+    <div class="admin-section">
+      <div class="admin-title">📅 Oppdater odds på kamp</div>
+      <div class="form-row">
+        <div class="form-col"><label>Velg kamp</label><select id="oddsMatchSelect"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-col"><label>Odds 1 (hjemme)</label><input type="number" id="odds1Input" step="0.01" value="2.50"></div>
+        <div class="form-col"><label>Odds X (uavgjort)</label><input type="number" id="oddsXInput" step="0.01" value="3.20"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-col"><label>Odds 2 (borte)</label><input type="number" id="odds2Input" step="0.01" value="2.80"></div>
+      </div>
+      <button class="btn-green" onclick="updateOdds()">Oppdater odds</button>
+    </div>
+
+    <div class="admin-section">
+      <div class="admin-title">👥 Spillere</div>
+      <div id="playersList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://zbbjmftpsoezoteecstv.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiYmptZnRwc29lem90ZWVjc3R2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2NzEyNjUsImV4cCI6MjA5NzI0NzI2NX0.6q5TldLKG8gejtxUNEvcA61BIEVf3EIWd3d8JtjYns4';
+const FOOTBALL_TOKEN = 'ce4bd4220d39442db51e250c648812b3';
+const WC_ID = 2000;
+const ADMIN_EMAIL = 'lorentz@mowinckel.no';
+const START_BALANCE = 1000;
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let currentProfile = null;
+let betSlip = [];
+let matches = [];
+let liveInterval = null;
+
+// ---- AUTH ----
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register')));
+  document.getElementById('loginForm').style.display = tab==='login'?'block':'none';
+  document.getElementById('registerForm').style.display = tab==='register'?'block':'none';
+}
+
+async function login() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) { document.getElementById('loginError').textContent = 'Feil e-post eller passord'; return; }
+}
+
+async function register() {
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const password = document.getElementById('regPassword').value;
+  if (!name) { document.getElementById('registerError').textContent = 'Skriv inn navn'; return; }
+  if (password.length < 6) { document.getElementById('registerError').textContent = 'Passord må være minst 6 tegn'; return; }
+  const { data, error } = await sb.auth.signUp({ email, password });
+  if (error) { document.getElementById('registerError').textContent = error.message; return; }
+  if (data.user) {
+    await sb.from('profiles').insert({ id: data.user.id, name, email, balance: START_BALANCE });
+    showToast('Konto opprettet! Sjekk e-posten din for bekreftelse 📧');
+  }
+}
+
+async function logout() {
+  await sb.auth.signOut();
+  clearInterval(liveInterval);
+  document.getElementById('authScreen').style.display = 'flex';
+  document.getElementById('appScreen').style.display = 'none';
+  betSlip = [];
+}
+
+// ---- INIT ----
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (session?.user) {
+    currentUser = session.user;
+    await loadProfile();
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display = 'block';
+    if (currentUser.email === ADMIN_EMAIL) {
+      document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
+    }
+    await loadMatches();
+    await renderMatches();
+    startLiveUpdates();
+  }
+});
+
+async function loadProfile() {
+  const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+  currentProfile = data;
+  document.getElementById('headerUser').textContent = data?.name || currentUser.email;
+  document.getElementById('headerBalance').textContent = formatFpm(data?.balance || 0);
+}
+
+// ---- FOOTBALL API ----
+async function fetchWCMatches() {
+  try {
+    const res = await fetch(`https://api.football-data.org/v4/competitions/${WC_ID}/matches`, {
+      headers: { 'X-Auth-Token': FOOTBALL_TOKEN }
+    });
+    const data = await res.json();
+    return data.matches || [];
+  } catch(e) { return []; }
+}
+
+async function loadMatches() {
+  const apiMatches = await fetchWCMatches();
+  const { data: dbMatches } = await sb.from('matches').select('*');
+  const dbMap = {};
+  (dbMatches || []).forEach(m => dbMap[m.api_id] = m);
+
+  for (const m of apiMatches.slice(0, 64)) {
+    const apiId = m.id;
+    const homeTeam = m.homeTeam?.name || 'TBD';
+    const awayTeam = m.awayTeam?.name || 'TBD';
+    const homeFlag = getFlag(m.homeTeam?.tla);
+    const awayFlag = getFlag(m.awayTeam?.tla);
+    const status = mapStatus(m.status);
+    const scoreHome = m.score?.fullTime?.home ?? null;
+    const scoreAway = m.score?.fullTime?.away ?? null;
+    const matchDate = m.utcDate;
+    const group = m.group || m.stage || 'VM 2026';
+
+    if (dbMap[apiId]) {
+      await sb.from('matches').update({ status, score_home: scoreHome, score_away: scoreAway }).eq('api_id', apiId);
+    } else {
+      await sb.from('matches').insert({
+        api_id: apiId,
+        home_team: homeTeam,
+        away_team: awayTeam,
+        home_flag: homeFlag,
+        away_flag: awayFlag,
+        match_date: matchDate,
+        group_name: group,
+        status,
+        score_home: scoreHome,
+        score_away: scoreAway,
+        odd1: 2.50,
+        oddX: 3.20,
+        odd2: 2.80
+      });
+    }
+  }
+  const { data } = await sb.from('matches').select('*').order('match_date', { ascending: true });
+  matches = data || [];
+}
+
+function mapStatus(s) {
+  if (s === 'FINISHED') return 'done';
+  if (s === 'IN_PLAY' || s === 'PAUSED' || s === 'HALFTIME') return 'live';
+  return 'upcoming';
+}
+
+function getFlag(tla) {
+  const flags = {
+    'ARG':'🇦🇷','BRA':'🇧🇷','FRA':'🇫🇷','ENG':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','GER':'🇩🇪','ESP':'🇪🇸','POR':'🇵🇹',
+    'NED':'🇳🇱','BEL':'🇧🇪','ITA':'🇮🇹','URU':'🇺🇾','COL':'🇨🇴','MEX':'🇲🇽','USA':'🇺🇸',
+    'JPN':'🇯🇵','KOR':'🇰🇷','MOR':'🇲🇦','SEN':'🇸🇳','AUS':'🇦🇺','CRO':'🇭🇷','POL':'🇵🇱',
+    'SUI':'🇨🇭','DEN':'🇩🇰','SWE':'🇸🇪','NOR':'🇳🇴','TUR':'🇹🇷','GHA':'🇬🇭','CMR':'🇨🇲',
+    'EGY':'🇪🇬','SAU':'🇸🇦','QAT':'🇶🇦','IRN':'🇮🇷','CAN':'🇨🇦','ECU':'🇪🇨','SRB':'🇷🇸',
+    'WAL':'🏴󠁧󠁢󠁷󠁬󠁳󠁿','CRC':'🇨🇷','TUN':'🇹🇳','CMR':'🇨🇲','GAB':'🇬🇦','PAN':'🇵🇦','CIV':'🇨🇮',
+    'ALG':'🇩🇿','AUT':'🇦🇹','HUN':'🇭🇺','GRE':'🇬🇷','ROU':'🇷🇴','CZE':'🇨🇿','SVK':'🇸🇰',
+    'SVN':'🇸🇮','UKR':'🇺🇦','NGA':'🇳🇬','MLI':'🇲🇱','BFA':'🇧🇫','CNG':'🇨🇩'
+  };
+  return flags[tla] || '🌍';
+}
+
+// ---- RENDER MATCHES ----
+async function renderMatches() {
+  const el = document.getElementById('matchList');
+  if (!matches.length) { el.innerHTML = '<div class="empty-state">Ingen kamper funnet</div>'; return; }
+  
+  const now = new Date();
+  const grouped = {};
+  matches.forEach(m => {
+    const g = m.group_name || 'VM 2026';
+    if (!grouped[g]) grouped[g] = [];
+    grouped[g].push(m);
+  });
+
+  let html = '';
+  for (const [group, gMatches] of Object.entries(grouped)) {
+    html += `<div style="font-size:12px;font-weight:600;color:var(--muted);margin:12px 0 6px;text-transform:uppercase;letter-spacing:0.5px;">${group}</div>`;
+    for (const m of gMatches) {
+      const slip = betSlip.find(b => b.matchId === m.id);
+      const sel = slip?.pick;
+      const locked = m.status !== 'upcoming';
+      const matchDate = new Date(m.match_date);
+      const dateStr = matchDate.toLocaleDateString('no', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+
+      const statusHtml = m.status === 'live'
+        ? `<span class="status-badge status-live"><span class="live-dot"></span>LIVE</span>`
+        : m.status === 'done'
+        ? `<span class="status-badge status-done">Ferdig</span>`
+        : `<span class="status-badge status-upcoming">${dateStr}</span>`;
+
+      const scoreHtml = m.status === 'done' || m.status === 'live'
+        ? `<div class="match-score-box"><div class="match-score">${m.score_home ?? '—'}–${m.score_away ?? '—'}</div></div>`
+        : `<div class="match-score-box"><div class="match-vs">vs</div></div>`;
+
+      const oddsHtml = locked
+        ? `<div style="text-align:center;font-size:13px;color:var(--muted);">${m.status==='done' ? (m.result==='1'?m.home_team:m.result==='2'?m.away_team:'Uavgjort')+' vant' : 'Betting stengt'}</div>`
+        : `<div class="odds-row">
+            <div class="odd-btn ${sel==='1'?'selected':''}" onclick="togglePick(${m.id},'1',${m.odd1},'${escQ(m.home_team)}','${escQ(m.away_team)}')">
+              <div class="odd-label">1 Hjemme</div><div class="odd-value">${parseFloat(m.odd1).toFixed(2)}</div>
+            </div>
+            <div class="odd-btn ${sel==='X'?'selected':''}" onclick="togglePick(${m.id},'X',${m.oddX},'${escQ(m.home_team)}','${escQ(m.away_team)}')">
+              <div class="odd-label">X Uavgjort</div><div class="odd-value">${parseFloat(m.oddX).toFixed(2)}</div>
+            </div>
+            <div class="odd-btn ${sel==='2'?'selected':''}" onclick="togglePick(${m.id},'2',${m.odd2},'${escQ(m.home_team)}','${escQ(m.away_team)}')">
+              <div class="odd-label">2 Borte</div><div class="odd-value">${parseFloat(m.odd2).toFixed(2)}</div>
+            </div>
+          </div>`;
+
+      html += `<div class="card">
+        <div class="card-header">${statusHtml}<span>${m.group_name||''}</span></div>
+        <div class="card-body">
+          <div class="match-teams">
+            <div class="team"><span class="team-flag">${m.home_flag||'🌍'}</span><div class="team-name">${m.home_team}</div></div>
+            ${scoreHtml}
+            <div class="team"><span class="team-flag">${m.away_flag||'🌍'}</span><div class="team-name">${m.away_team}</div></div>
+          </div>
+          ${oddsHtml}
+        </div>
+      </div>`;
+    }
+  }
+  el.innerHTML = html;
+}
+
+function escQ(str) { return (str||'').replace(/'/g,"\\'"); }
+
+// ---- BET SLIP ----
+function togglePick(matchId, pick, odd, home, away) {
+  const idx = betSlip.findIndex(b => b.matchId === matchId);
+  if (idx >= 0) {
+    if (betSlip[idx].pick === pick) betSlip.splice(idx, 1);
+    else betSlip[idx] = { matchId, pick, odd, home, away };
+  } else {
+    betSlip.push({ matchId, pick, odd, home, away });
+  }
+  updateSlipBadge();
+  renderMatches();
+}
+
+function updateSlipBadge() {
+  const c = betSlip.length;
+  const badge = document.getElementById('slipBadge');
+  badge.style.display = c > 0 ? 'inline' : 'none';
+  badge.textContent = c;
+}
+
+function renderSlip() {
+  const items = document.getElementById('slipItems');
+  if (!betSlip.length) {
+    items.innerHTML = '<div class="empty-state" style="padding:1rem 0;">Ingen valg ennå</div>';
+    document.getElementById('totalOddsDisplay').textContent = 'Total odds: —';
+    document.getElementById('payoutVal').textContent = '— fpm';
+    document.getElementById('placeBetBtn').disabled = true;
+    return;
+  }
+  const totalOdds = betSlip.reduce((a, b) => a * b.odd, 1);
+  document.getElementById('totalOddsDisplay').textContent = 'Total odds: ' + totalOdds.toFixed(2);
+  items.innerHTML = betSlip.map((b, i) => {
+    const label = b.pick==='1' ? b.home : b.pick==='2' ? b.away : 'Uavgjort';
+    return `<div class="slip-item">
+      <div>
+        <div class="slip-match">${b.home} – ${b.away}</div>
+        <div class="slip-pick">${label}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="slip-odd">×${parseFloat(b.odd).toFixed(2)}</span>
+        <button class="remove-btn" onclick="removePick(${i})">×</button>
+      </div>
+    </div>`;
+  }).join('');
+  updatePayout();
+  document.getElementById('placeBetBtn').disabled = false;
+}
+
+function removePick(i) {
+  betSlip.splice(i, 1);
+  updateSlipBadge();
+  renderSlip();
+}
+
+function updatePayout() {
+  const stake = parseFloat(document.getElementById('stakeInput').value) || 0;
+  const totalOdds = betSlip.reduce((a, b) => a * b.odd, 1);
+  document.getElementById('payoutVal').textContent = formatFpm(stake * totalOdds);
+}
+
+async function placeBet() {
+  const stake = parseFloat(document.getElementById('stakeInput').value) || 0;
+  if (stake < 10) { showToast('Minste innsats er 10 fpm'); return; }
+  if (stake > (currentProfile?.balance || 0)) { showToast('Ikke nok fpm på konto!'); return; }
+  if (!betSlip.length) return;
+  const totalOdds = betSlip.reduce((a, b) => a * b.odd, 1);
+  const { error } = await sb.from('bets').insert({
+    user_id: currentUser.id,
+    picks: betSlip,
+    stake,
+    total_odds: totalOdds,
+    potential_payout: stake * totalOdds,
+    status: 'venter'
+  });
+  if (error) { showToast('Noe gikk galt, prøv igjen'); return; }
+  await sb.from('profiles').update({ balance: (currentProfile.balance - stake) }).eq('id', currentUser.id);
+  betSlip = [];
+  updateSlipBadge();
+  await loadProfile();
+  showToast('Bet lagt inn! 🎉');
+  switchTab('mine');
+}
+
+// ---- MY BETS ----
+async function renderMyBets() {
+  const { data } = await sb.from('bets').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+  const el = document.getElementById('myBetsList');
+  if (!data?.length) { el.innerHTML = '<div class="empty-state">Ingen bets ennå</div>'; return; }
+  const statusClass = { venter:'result-venter', vunnet:'result-vunnet', tapt:'result-tapt' };
+  const statusLabel = { venter:'⏳ Venter', vunnet:'✅ Vunnet', tapt:'❌ Tapt' };
+  el.innerHTML = data.map(b => {
+    const picksHtml = b.picks.map(p => {
+      const label = p.pick==='1' ? p.home : p.pick==='2' ? p.away : 'Uavgjort';
+      return `<span>${p.home} – ${p.away}: <b>${label}</b> (×${parseFloat(p.odd).toFixed(2)})</span>`;
+    }).join('<br>');
+    return `<div class="bet-row">
+      <div class="bet-meta">
+        <span style="font-size:12px;color:var(--muted);">${new Date(b.created_at).toLocaleDateString('no')}</span>
+        <span class="result-badge ${statusClass[b.status]}">${statusLabel[b.status]}</span>
+      </div>
+      <div class="bet-picks">${picksHtml}</div>
+      <div class="bet-amounts">
+        <span style="color:var(--muted);">Innsats: ${formatFpm(b.stake)}</span>
+        <span>Mulig: <b style="color:var(--success);">${formatFpm(b.potential_payout)}</b></span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ---- LEADERBOARD ----
+async function renderLeaderboard() {
+  const { data } = await sb.from('profiles').select('*').order('balance', { ascending: false });
+  const el = document.getElementById('leaderboard');
+  if (!data?.length) { el.innerHTML = '<div class="empty-state">Ingen spillere ennå</div>'; return; }
+  const ranks = ['🥇','🥈','🥉'];
+  const colors = ['#1D9E75','#378ADD','#D85A30','#D4537E','#7F77DD','#639922','#BA7517'];
+  el.innerHTML = data.map((p, i) => {
+    const diff = p.balance - START_BALANCE;
+    const diffStr = diff >= 0
+      ? `<span class="positive">+${formatFpm(diff)}</span>`
+      : `<span class="negative">${formatFpm(diff)}</span>`;
+    const initials = (p.name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const color = colors[i % colors.length];
+    return `<div class="lb-row">
+      <div class="lb-rank">${ranks[i] || (i+1)}</div>
+      <div class="lb-avatar" style="background:${color}22;color:${color};">${initials}</div>
+      <div class="lb-name">${p.name}</div>
+      ${diffStr}
+      <div class="lb-balance">${formatFpm(p.balance)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ---- ADMIN ----
+async function renderAdmin() {
+  const upcoming = matches.filter(m => m.status !== 'done');
+  const optHtml = upcoming.map(m => `<option value="${m.id}">${m.home_team} – ${m.away_team}</option>`).join('');
+  document.getElementById('resultMatchSelect').innerHTML = optHtml;
+  document.getElementById('oddsMatchSelect').innerHTML = optHtml;
+  const { data: players } = await sb.from('profiles').select('*').order('balance', { ascending: false });
+  document.getElementById('playersList').innerHTML = (players||[]).map(p =>
+    `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px;">
+      <span>${p.name}</span><span style="font-weight:500;">${formatFpm(p.balance)}</span>
+    </div>`
+  ).join('');
+}
+
+async function setResult() {
+  const matchId = parseInt(document.getElementById('resultMatchSelect').value);
+  const result = document.getElementById('resultSelect').value;
+  await sb.from('matches').update({ result, status: 'done' }).eq('id', matchId);
+  const { data: bets } = await sb.from('bets').select('*').eq('status', 'venter');
+  for (const bet of (bets||[])) {
+    const pick = bet.picks.find(p => p.matchId === matchId);
+    if (!pick) continue;
+    const allDone = await checkAllPicksDone(bet.picks);
+    if (!allDone) continue;
+    const won = await checkBetWon(bet.picks);
+    await sb.from('bets').update({ status: won ? 'vunnet' : 'tapt' }).eq('id', bet.id);
+    if (won) {
+      const { data: profile } = await sb.from('profiles').select('balance').eq('id', bet.user_id).single();
+      await sb.from('profiles').update({ balance: (profile.balance + bet.potential_payout) }).eq('id', bet.user_id);
+    }
+  }
+  await loadMatches();
+  await renderMatches();
+  await loadProfile();
+  showToast('Resultat satt! Bets gjort opp 💰');
+}
+
+async function checkAllPicksDone(picks) {
+  for (const p of picks) {
+    const { data: m } = await sb.from('matches').select('status').eq('id', p.matchId).single();
+    if (m?.status !== 'done') return false;
+  }
+  return true;
+}
+
+async function checkBetWon(picks) {
+  for (const p of picks) {
+    const { data: m } = await sb.from('matches').select('result').eq('id', p.matchId).single();
+    if (m?.result !== p.pick) return false;
+  }
+  return true;
+}
+
+async function updateOdds() {
+  const matchId = parseInt(document.getElementById('oddsMatchSelect').value);
+  const odd1 = parseFloat(document.getElementById('odds1Input').value);
+  const oddX = parseFloat(document.getElementById('oddsXInput').value);
+  const odd2 = parseFloat(document.getElementById('odds2Input').value);
+  await sb.from('matches').update({ odd1, oddX, odd2 }).eq('id', matchId);
+  await loadMatches();
+  await renderMatches();
+  showToast('Odds oppdatert!');
+}
+
+// ---- LIVE UPDATES ----
+function startLiveUpdates() {
+  clearInterval(liveInterval);
+  liveInterval = setInterval(async () => {
+    const liveMatches = matches.filter(m => m.status === 'live');
+    if (liveMatches.length > 0) {
+      await loadMatches();
+      await renderMatches();
+    }
+  }, 60000);
+}
+
+// ---- TAB SWITCHING ----
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
+  document.getElementById(`page-${tab}`).classList.add('active');
+  if (tab === 'kupong') renderSlip();
+  if (tab === 'mine') renderMyBets();
+  if (tab === 'tabell') renderLeaderboard();
+  if (tab === 'admin') renderAdmin();
+}
+
+// ---- HELPERS ----
+function formatFpm(n) { return Math.round(n).toLocaleString('no') + ' fpm'; }
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
